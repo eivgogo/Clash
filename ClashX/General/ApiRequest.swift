@@ -12,6 +12,7 @@ import SwiftyJSON
 import Foundation
 import NIOHTTP1
 import NIOCore
+import Yams
 
 typealias ErrorString = String
 
@@ -159,6 +160,7 @@ class ApiRequest {
             .response
 
         if response.httpResponse?.statusCode == 204 {
+            await applyListenerSettings(configPath: configPath)
             return nil
         }
 
@@ -167,6 +169,30 @@ class ApiRequest {
             ?? placeHolderErrorDesp
         Logger.log(err)
         return err
+    }
+
+    /// mihomo only applies listener settings (such as `allow-lan`) when a config
+    /// is loaded with `force=true`. ClashX reloads configs without force so that
+    /// inbound ports are not rebound, which means those settings would otherwise
+    /// keep the values from the initial launch config. Re-apply them explicitly.
+    private static func applyListenerSettings(configPath: String) async {
+        guard let data = FileManager.default.contents(atPath: configPath),
+              let content = String(data: data, encoding: .utf8),
+              let object = try? Yams.load(yaml: content),
+              let yaml = object as? [String: Any] else {
+            return
+        }
+
+        let rawValue = yaml["allow-lan"]
+        let allowLan: Bool
+        if let value = rawValue as? Bool {
+            allowLan = value
+        } else if let value = rawValue as? String {
+            allowLan = value.lowercased() == "true"
+        } else {
+            allowLan = false
+        }
+        await updateAllowLan(allow: allowLan)
     }
 
     static func updateOutBoundMode(mode: ClashProxyMode) async -> Bool {
