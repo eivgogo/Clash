@@ -25,6 +25,8 @@ jobs:
 
     - name: build infos
       run: |
+        # Forks don't carry upstream tags; fetch them so `git describe` can resolve the app version.
+        git fetch --tags https://github.com/MetaCubeX/ClashX.Meta.git || true
         /usr/libexec/PlistBuddy -c "Set CFBundleVersion $(git rev-list --count origin/master..origin/meta)" ClashX/Info.plist
         /usr/libexec/PlistBuddy -c "Set CFBundleShortVersionString $(git describe --tags --abbrev=0)" ClashX/Info.plist
         /usr/libexec/PlistBuddy -c "Add coreVersion string $MIHOMO_TAG" ClashX/Info.plist
